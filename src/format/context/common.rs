@@ -8,6 +8,7 @@ use ffi::*;
 use libc::{c_int, c_uint};
 use {media, Chapter, ChapterMut, DictionaryRef, Stream, StreamMut};
 
+#[repr(align(64))]
 pub struct Context {
     ptr: *mut AVFormatContext,
     dtor: Rc<Destructor>,

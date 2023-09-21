@@ -6,6 +6,13 @@ use libc::{c_int, c_void};
 
 pub struct Interrupt {
     pub interrupt: AVIOInterruptCB,
+    pub dtor: fn(*mut c_void),
+}
+
+impl Drop for Interrupt {
+    fn drop(&mut self) {
+        (self.dtor)(self.interrupt.opaque);
+    }
 }
 
 extern "C" fn callback<F>(opaque: *mut c_void) -> c_int
@@ -15,6 +22,19 @@ where
     match panic::catch_unwind(|| (unsafe { &mut *(opaque as *mut F) })()) {
         Ok(ret) => ret as c_int,
         Err(_) => process::abort(),
+    }
+}
+
+fn destructor<F>(opaque: *mut c_void)
+where
+    F: FnMut() -> bool,
+{
+    if opaque.is_null() {
+        return;
+    }
+    match panic::catch_unwind(|| unsafe { drop(Box::from_raw(opaque as *mut F)) }) {
+        Err(_) => process::abort(),
+        _ => (),
     }
 }
 
@@ -28,5 +48,6 @@ where
     };
     Interrupt {
         interrupt: interrupt_cb,
+        dtor: destructor::<F>,
     }
 }

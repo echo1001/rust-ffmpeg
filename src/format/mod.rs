@@ -76,7 +76,7 @@ pub fn open<P: AsRef<Path>>(path: &P, format: &Format) -> Result<Context, Error>
                 ptr::null_mut(),
             ) {
                 0 => match avformat_find_stream_info(ps, ptr::null_mut()) {
-                    r if r >= 0 => Ok(Context::Input(context::Input::wrap(ps))),
+                    r if r >= 0 => Ok(Context::Input(context::Input::wrap(ps, None))),
                     e => Err(Error::from(e)),
                 },
 
@@ -123,7 +123,7 @@ pub fn open_with<P: AsRef<Path>>(
 
                 match res {
                     0 => match avformat_find_stream_info(ps, ptr::null_mut()) {
-                        r if r >= 0 => Ok(Context::Input(context::Input::wrap(ps))),
+                        r if r >= 0 => Ok(Context::Input(context::Input::wrap(ps, None))),
                         e => Err(Error::from(e)),
                     },
 
@@ -155,7 +155,7 @@ pub fn input<P: AsRef<Path>>(path: &P) -> Result<context::Input, Error> {
 
         match avformat_open_input(&mut ps, path.as_ptr(), ptr::null_mut(), ptr::null_mut()) {
             0 => match avformat_find_stream_info(ps, ptr::null_mut()) {
-                r if r >= 0 => Ok(context::Input::wrap(ps)),
+                r if r >= 0 => Ok(context::Input::wrap(ps, None)),
                 e => {
                     avformat_close_input(&mut ps);
                     Err(Error::from(e))
@@ -181,7 +181,7 @@ pub fn input_with_dictionary<P: AsRef<Path>>(
 
         match res {
             0 => match avformat_find_stream_info(ps, ptr::null_mut()) {
-                r if r >= 0 => Ok(context::Input::wrap(ps)),
+                r if r >= 0 => Ok(context::Input::wrap(ps, None)),
                 e => {
                     avformat_close_input(&mut ps);
                     Err(Error::from(e))
@@ -203,11 +203,13 @@ where
     unsafe {
         let mut ps = avformat_alloc_context();
         let path = from_path(path);
-        (*ps).interrupt_callback = interrupt::new(Box::new(closure)).interrupt;
+        let interupt_instance = interrupt::new(Box::new(closure));
+
+        (*ps).interrupt_callback = interupt_instance.interrupt;
 
         match avformat_open_input(&mut ps, path.as_ptr(), ptr::null_mut(), ptr::null_mut()) {
             0 => match avformat_find_stream_info(ps, ptr::null_mut()) {
-                r if r >= 0 => Ok(context::Input::wrap(ps)),
+                r if r >= 0 => Ok(context::Input::wrap(ps, interupt_instance.into())),
                 e => {
                     avformat_close_input(&mut ps);
                     Err(Error::from(e))

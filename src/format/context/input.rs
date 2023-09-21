@@ -2,6 +2,8 @@ use std::ffi::CString;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
+use crate::util::interrupt;
+
 use super::common::Context;
 use super::destructor;
 use ffi::*;
@@ -13,15 +15,17 @@ use {format, Error, Packet, Stream};
 pub struct Input {
     ptr: *mut AVFormatContext,
     ctx: Context,
+    _interrupt: Option<interrupt::Interrupt>,
 }
 
 unsafe impl Send for Input {}
 
 impl Input {
-    pub unsafe fn wrap(ptr: *mut AVFormatContext) -> Self {
+    pub unsafe fn wrap(ptr: *mut AVFormatContext, interrupt: Option<interrupt::Interrupt>) -> Self {
         Input {
             ptr,
             ctx: Context::wrap(ptr, destructor::Mode::Input),
+            _interrupt: interrupt,
         }
     }
 
